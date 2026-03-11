@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -24,6 +25,7 @@ public class RateLimitingFilter implements GlobalFilter, Ordered {
     private final int maxRequestsPerWindow;
     private final Duration windowDuration;
     private final Map<String, CounterWindow> requestCounters = new ConcurrentHashMap<>();
+    private final AtomicLong lastCleanupEpochMilli = new AtomicLong(0);
 
     public RateLimitingFilter(
             @Value("${gateway.rate-limit.max-requests-per-window:100}") int maxRequestsPerWindow,
@@ -34,9 +36,11 @@ public class RateLimitingFilter implements GlobalFilter, Ordered {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+        Instant now = Instant.now();
+        evictExpiredCounters(now);
+
         String clientKey = resolveClientKey(exchange);
         CounterWindow counterWindow = requestCounters.compute(clientKey, (key, existingWindow) -> {
-            Instant now = Instant.now();
             if (existingWindow == null || now.isAfter(existingWindow.windowStart().plus(windowDuration))) {
                 return new CounterWindow(now, new AtomicInteger(1));
             }
@@ -72,6 +76,22 @@ public class RateLimitingFilter implements GlobalFilter, Ordered {
         }
 
         return remoteAddress.getAddress().getHostAddress();
+    }
+
+    private void evictExpiredCounters(Instant now) {
+        long nowEpochMilli = now.toEpochMilli();
+        long lastCleanup = lastCleanupEpochMilli.get();
+        long cleanupIntervalMillis = windowDuration.toMillis();
+
+        if (nowEpochMilli - lastCleanup < cleanupIntervalMillis) {
+            return;
+        }
+
+        if (!lastCleanupEpochMilli.compareAndSet(lastCleanup, nowEpochMilli)) {
+            return;
+        }
+
+        requestCounters.entrySet().removeIf(entry -> now.isAfter(entry.getValue().windowStart().plus(windowDuration)));
     }
 
     private record CounterWindow(Instant windowStart, AtomicInteger requestCount) {
