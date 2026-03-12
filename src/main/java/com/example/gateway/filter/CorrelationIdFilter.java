@@ -19,25 +19,21 @@ public class CorrelationIdFilter implements GlobalFilter, Ordered {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        String correlationId = exchange.getRequest().getHeaders().getFirst(CORRELATION_ID_HEADER);
-        if (correlationId == null || correlationId.isBlank()) {
-            correlationId = UUID.randomUUID().toString();
-        }
+        String headerCorrelationId = exchange.getRequest().getHeaders().getFirst(CORRELATION_ID_HEADER);
+        final String correlationId = (headerCorrelationId == null || headerCorrelationId.isBlank())
+                ? UUID.randomUUID().toString()
+                : headerCorrelationId;
 
         ServerHttpRequest requestWithCorrelationId = exchange.getRequest()
                 .mutate()
-                .headers(headers -> headers.set(CORRELATION_ID_HEADER, correlationId))
+                .header(CORRELATION_ID_HEADER, correlationId)
                 .build();
 
-        ServerWebExchange mutatedExchange = exchange
-                .mutate()
-                .request(requestWithCorrelationId)
-                .build();
+        ServerWebExchange mutatedExchange = exchange.mutate().request(requestWithCorrelationId).build();
 
-        String finalCorrelationId = correlationId;
         return chain.filter(mutatedExchange)
-                .contextWrite(context -> context.put(CORRELATION_ID_HEADER, finalCorrelationId))
-                .doFirst(() -> MDC.put(CORRELATION_ID_HEADER, finalCorrelationId))
+                .contextWrite(context -> context.put(CORRELATION_ID_HEADER, correlationId))
+                .doFirst(() -> MDC.put(CORRELATION_ID_HEADER, correlationId))
                 .doFinally(signal -> MDC.remove(CORRELATION_ID_HEADER));
     }
 

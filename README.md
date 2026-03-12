@@ -1,6 +1,6 @@
 # sboot-security-base-api-gateway
 
-Production-ready Spring Boot API Gateway acting as **Gateway + BFF + OAuth2 Resource Server** for an Angular frontend.
+Production-ready Spring Boot API Gateway acting as **Gateway + BFF** for an Angular frontend.
 
 ## Architecture
 
@@ -25,7 +25,7 @@ RabbitMQ workers
 This gateway is responsible for:
 
 1. Receiving requests from Angular clients.
-2. Validating JWT tokens issued by `identity-service` using JWKS.
+2. Validating JWT tokens using shared-secret HMAC (`HS512`).
 3. Applying cross-cutting concerns globally:
    - Correlation ID
    - Request logging
@@ -40,8 +40,7 @@ This gateway is responsible for:
 - Spring Boot 3.3.x
 - Spring Cloud Gateway
 - Spring Security (WebFlux)
-- OAuth2 Resource Server
-- JWT / JWKS validation
+- JWT validation (`HS512`)
 - Maven
 
 ## Project Structure
@@ -73,15 +72,15 @@ This gateway is responsible for:
 
 ## Security
 
-- Configured as an OAuth2 Resource Server (`spring-boot-starter-oauth2-resource-server`).
-- JWT tokens are validated against identity-service JWKS URI.
+- JWT tokens are validated locally with HMAC `HS512`.
+- The gateway and token issuer must use the same shared secret.
 - All endpoints require authentication except:
   - `GET /actuator/health`
 
-Set JWKS URI via env var:
+Set the HMAC secret via env var:
 
 ```bash
-IDENTITY_SERVICE_JWKS_URI=http://identity-service:8081/oauth2/jwks
+JWT_HS512_SECRET=YmFzaWNfY3JlZGVudGlhbC5zZWNyZXQta2V5LWZvci1zYWFzLWhvbGVyaXRlLWJmZi1nYXRld2F5
 ```
 
 ## Gateway Routes
@@ -145,7 +144,7 @@ Run container:
 
 ```bash
 docker run --rm -p 8080:8080 \
-  -e IDENTITY_SERVICE_JWKS_URI=http://identity-service:8081/oauth2/jwks \
+  -e JWT_HS512_SECRET=YmFzaWNfY3JlZGVudGlhbC5zZWNyZXQta2V5LWZvci1zYWFzLWhvbGVyaXRlLWJmZi1nYXRld2F5 \
   sboot-security-base-api-gateway:latest
 ```
 

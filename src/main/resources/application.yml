@@ -1,14 +1,9 @@
 server:
-  port: 8080
+  port: 8081
 
 spring:
   application:
     name: sboot-security-base-api-gateway
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          jwk-set-uri: ${IDENTITY_SERVICE_JWKS_URI:http://identity-service:8081/oauth2/jwks}
   cloud:
     gateway:
       httpclient:
@@ -35,3 +30,10 @@ logging:
   level:
     root: INFO
     com.example.gateway: INFO
+
+security:
+  jwt:
+    # Estrategia ativa de autenticacao do gateway: JWT HMAC HS512 com segredo compartilhado.
+    # Use a variavel de ambiente JWT_HS512_SECRET em producao.
+    # Para HS512, recomenda-se um segredo com 64+ bytes de entropia.
+    hmac-secret: ${JWT_HS512_SECRET:YmFzaWNfY3JlZGVudGlhbC5zZWNyZXQta2V5LWZvci1zYWFzLWhvbGVyaXRlLWJmZi1nYXRld2F5}
