@@ -1,0 +1,39 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: sboot-security-base-api-gateway
+  cloud:
+    gateway:
+      httpclient:
+        connect-timeout: 5000
+        response-timeout: 10s
+      default-filters:
+        - RemoveRequestHeader=Cookie
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: never
+
+gateway:
+  rate-limit:
+    max-requests-per-window: 100
+    window-seconds: 60
+
+logging:
+  level:
+    root: INFO
+    com.example.gateway: INFO
+
+security:
+  jwt:
+    # Estrategia ativa de autenticacao do gateway: JWT HMAC HS512 com segredo compartilhado.
+    # Use a variavel de ambiente JWT_HS512_SECRET em producao.
+    # Para HS512, recomenda-se um segredo com 64+ bytes de entropia.
+    hmac-secret: ${JWT_HS512_SECRET:YmFzaWNfY3JlZGVudGlhbC5zZWNyZXQta2V5LWZvci1zYWFzLWhvbGVyaXRlLWJmZi1nYXRld2F5}

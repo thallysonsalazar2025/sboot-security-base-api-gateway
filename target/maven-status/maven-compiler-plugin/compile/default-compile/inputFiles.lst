@@ -1,0 +1,16 @@
+C:\Workspace\sboot-security-base-api-gateway\src\main\java\com\example\gateway\config\CorsGlobalConfig.java
+C:\Workspace\sboot-security-base-api-gateway\src\main\java\com\example\gateway\config\GatewayRouteConfig.java
+C:\Workspace\sboot-security-base-api-gateway\src\main\java\com\example\gateway\config\OutboundAuthPropagationConfig.java
+C:\Workspace\sboot-security-base-api-gateway\src\main\java\com\example\gateway\config\SecurityConfig.java
+C:\Workspace\sboot-security-base-api-gateway\src\main\java\com\example\gateway\controller\HealthController.java
+C:\Workspace\sboot-security-base-api-gateway\src\main\java\com\example\gateway\dto\HealthCheckRequest.java
+C:\Workspace\sboot-security-base-api-gateway\src\main\java\com\example\gateway\dto\HealthResponse.java
+C:\Workspace\sboot-security-base-api-gateway\src\main\java\com\example\gateway\exception\FileGenerationException.java
+C:\Workspace\sboot-security-base-api-gateway\src\main\java\com\example\gateway\exception\GlobalExceptionHandler.java
+C:\Workspace\sboot-security-base-api-gateway\src\main\java\com\example\gateway\filter\CorrelationIdFilter.java
+C:\Workspace\sboot-security-base-api-gateway\src\main\java\com\example\gateway\filter\RateLimitingFilter.java
+C:\Workspace\sboot-security-base-api-gateway\src\main\java\com\example\gateway\filter\RequestLoggingFilter.java
+C:\Workspace\sboot-security-base-api-gateway\src\main\java\com\example\gateway\filter\RequestTimingFilter.java
+C:\Workspace\sboot-security-base-api-gateway\src\main\java\com\example\gateway\SbootSecurityBaseApiGatewayApplication.java
+C:\Workspace\sboot-security-base-api-gateway\src\main\java\com\example\gateway\security\JwtAuthenticationFilter.java
+C:\Workspace\sboot-security-base-api-gateway\src\main\java\com\example\gateway\service\FileGenerator.java

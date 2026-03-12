@@ -1,0 +1,141 @@
+openapi: 3.0.3
+info:
+  title: API Gateway - Health
+  version: v1
+  description: >
+    Contrato OpenAPI do endpoint de verificação de saúde e geração de relatório.
+    Este endpoint aciona a geração de um arquivo a partir do payload e retorna o status do serviço.
+  contact:
+    name: Equipe API Gateway
+servers:
+  - url: http://localhost:8080
+    description: Ambiente local
+tags:
+  - name: Health
+    description: Operações de verificação de saúde e geração de relatório
+paths:
+  /api/v1/health:
+    post:
+      tags: [Health]
+      summary: Gera um arquivo de relatório e retorna o status de saúde
+      description: Recebe um HealthCheckRequest, aciona a geração do arquivo e retorna o status atual do serviço.
+      operationId: checkHealth
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: X-Correlation-Id
+          in: header
+          description: ID de correlação para rastreamento ponta-a-ponta
+          required: false
+          schema:
+            type: string
+            format: uuid
+          example: 123e4567-e89b-12d3-a456-426614174000
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HealthCheckRequest'
+            examples:
+              default:
+                summary: Exemplo padrão
+                value:
+                  reportType: SUMMARY
+                  includeDetails: true
+      responses:
+        '200':
+          description: Status de saúde retornado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              examples:
+                default:
+                  value:
+                    service: sboot-security-base-api-gateway
+                    status: UP
+                    timestamp: '2025-01-01T12:00:00Z'
+                    requestedType: SUMMARY
+        '400':
+          description: Requisição inválida
+        '401':
+          description: Não autorizado
+        '429':
+          description: Muitas requisições (rate limit)
+        '500':
+          description: Erro interno do servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    HealthCheckRequest:
+      type: object
+      required: [reportType, includeDetails]
+      properties:
+        reportType:
+          type: string
+          description: Tipo de relatório a ser gerado
+          example: SUMMARY
+        includeDetails:
+          type: boolean
+          description: Se deve incluir detalhes no relatório
+          example: true
+    HealthResponse:
+      type: object
+      required: [service, status, timestamp, requestedType]
+      properties:
+        service:
+          type: string
+          description: Nome do serviço
+          example: sboot-security-base-api-gateway
+        status:
+          type: string
+          description: Status atual do serviço
+          example: UP
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp da resposta em ISO-8601
+          example: '2025-01-01T12:00:00Z'
+        requestedType:
+          type: string
+          description: Tipo de relatório solicitado
+          example: SUMMARY
+    ProblemDetail:
+      type: object
+      description: Estrutura de erro baseada em RFC 7807 (Problem Details)
+      properties:
+        type:
+          type: string
+          format: uri
+          example: about:blank
+        title:
+          type: string
+          example: Internal Server Error
+        status:
+          type: integer
+          format: int32
+          example: 500
+        detail:
+          type: string
+          example: Falha ao gerar arquivo
+        instance:
+          type: string
+          format: uri
+          example: /api/v1/health
+        correlationId:
+          type: string
+          format: uuid
+          example: 123e4567-e89b-12d3-a456-426614174000
+        timestamp:
+          type: string
+          format: date-time
+          example: '2025-01-01T12:00:00Z'
