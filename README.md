@@ -1,46 +1,51 @@
 # sboot-security-base-api-gateway
 
-Production-ready Spring Boot API Gateway acting as **Gateway + BFF** for an Angular frontend.
+Production-ready Spring Boot API Gateway acting as **Gateway + BFF** for the Payroll system.
 
 ## Architecture
 
 ```text
-Angular Client
-   |
-   v
-Identity Service (authenticates users, issues JWT)
-   |
-   v
-sboot-security-base-api-gateway (this project)
-   |
-   v
-holerite-service
-   |
-   v
-RabbitMQ workers
+API Gateway
+   ↓
+Publisher (request)
+   ↓
+RabbitMQ
+   ↓
+Orchestrator
+   ↓
+ ┌───────────────┬──────────────────┐
+ ↓               ↓                  ↓
+Employee       Company         Calculation
+Service        Service         Service
+ └───────────────┴──────────────────┘
+           ↓
+   Generation Processor
+           ↓
+   Document Storage Service
+           ↓
+   Status Service
+           ↓
+   Notification Service (opcional)
+
 ```
 
 ## Responsibilities
 
-This gateway is responsible for:
+This gateway acts as the entry point for the Payroll system, handling:
 
-1. Receiving requests from Angular clients.
-2. Validating JWT tokens using shared-secret HMAC (`HS512`).
-3. Applying cross-cutting concerns globally:
-   - Correlation ID
-   - Request logging
-   - Rate limiting
-   - Request timing
-4. Routing requests to backend microservices.
-5. Serving BFF endpoints for frontend-friendly APIs.
+1. **Authentication**: Validates JWT tokens using shared-secret HMAC (`HS512`).
+2. **Context Extraction**: Extracts user context (`companyId`, `employeeId`) from the validated token.
+3. **Request Adaptation**: Transforms frontend requests (`GET /payroll?year=YYYY&month=MM`) into backend service calls (`POST /payroll` with `PayrollRequest`).
+4. **Proxying**: Forwards the request to `sboot-payroll-query-service` and returns the response transparently.
+5. **Cross-Cutting Concerns**: Handles correlation IDs, logging, and security globally.
 
 ## Tech Stack
 
 - Java 21
 - Spring Boot 3.3.x
-- Spring Cloud Gateway
-- Spring Security (WebFlux)
-- JWT validation (`HS512`)
+- Spring WebFlux (Reactive Stack)
+- Spring Security (OAuth2 Resource Server + JWT)
+- Spring WebClient
 - Maven
 
 ## Project Structure
@@ -54,16 +59,28 @@ This gateway is responsible for:
     ├── main
     │   ├── java/com/example/gateway
     │   │   ├── SbootSecurityBaseApiGatewayApplication.java
+    │   │   ├── client
+    │   │   │   ├── PayrollQueryClient.java
+    │   │   │   └── WebClientPayrollQueryClient.java
     │   │   ├── config
-    │   │   │   ├── GatewayRouteConfig.java
+    │   │   │   ├── CorsGlobalConfig.java
+    │   │   │   ├── HmacJwtDecoderConfig.java
+    │   │   │   ├── OutboundAuthPropagationConfig.java
     │   │   │   └── SecurityConfig.java
+    │   │   ├── controller
+    │   │   │   └── PayrollController.java
+    │   │   ├── dto
+    │   │   │   └── PayrollRequest.java
     │   │   ├── filter
     │   │   │   ├── CorrelationIdFilter.java
     │   │   │   ├── RateLimitingFilter.java
     │   │   │   ├── RequestLoggingFilter.java
     │   │   │   └── RequestTimingFilter.java
-    │   │   └── web
-    │   │       └── HealthController.java
+    │   │   ├── security
+    │   │   │   └── JwtAuthenticationFilter.java
+    │   │   └── service
+    │   │       ├── PayrollService.java
+    │   │       └── PayrollServiceImpl.java
     │   └── resources
     │       └── application.yml
     └── test
@@ -73,9 +90,8 @@ This gateway is responsible for:
 ## Security
 
 - JWT tokens are validated locally with HMAC `HS512`.
-- The gateway and token issuer must use the same shared secret.
-- All endpoints require authentication except:
-  - `GET /actuator/health`
+- The gateway extracts `companyId` and `employeeId` claims to authorize access to payroll data.
+- All endpoints under `/api/v1` require authentication.
 
 Set the HMAC secret via env var:
 
@@ -83,42 +99,25 @@ Set the HMAC secret via env var:
 JWT_HS512_SECRET=YmFzaWNfY3JlZGVudGlhbC5zZWNyZXQta2V5LWZvci1zYWFzLWhvbGVyaXRlLWJmZi1nYXRld2F5
 ```
 
-## Gateway Routes
+## API Endpoints
 
-Routes configured in `GatewayRouteConfig`:
+### Payroll Query
 
-1. `POST /holerites/generate`
-   - forwards to `http://holerite-service:8080/holerites/generate`
-2. `GET /holerites/{id}`
-   - forwards to `http://holerite-service:8080/holerites/{id}`
+- **Endpoint**: `GET /api/v1/payroll`
+- **Parameters**:
+  - `year` (int): Year of the payroll period (YYYY)
+  - `month` (int): Month of the payroll period (MM)
+- **Headers**:
+  - `Authorization`: `Bearer <valid_jwt_token>`
+- **Description**: Retrieves payroll information for the authenticated user based on the provided period. The gateway enriches the request with `companyId` and `employeeId` from the token before forwarding it to the backend service.
 
-## Filters
+## Configuration
 
-### 1) Correlation ID Filter
-- Header: `X-Correlation-Id`
-- Reuses existing correlation ID or generates a new UUID.
+Set the backend service URL via env var:
 
-### 2) Request Logging Filter
-- Logs incoming requests (method/path/query/remote address).
-- Logs response status when completed.
-
-### 3) Rate Limiting Filter
-- In-memory per-client IP window limiter.
-- Configurable with:
-  - `gateway.rate-limit.max-requests-per-window`
-  - `gateway.rate-limit.window-seconds`
-- Returns HTTP `429 Too Many Requests` with `Retry-After` header.
-
-### 4) Request Timing Filter
-- Measures end-to-end processing time.
-- Adds `X-Response-Time-Ms` response header.
-
-## Health Endpoints
-
-- Public operational health check:
-  - `GET /actuator/health`
-- Example BFF endpoint:
-  - `GET /api/v1/health` (requires authentication)
+```bash
+PAYROLL_QUERY_SERVICE_URL=http://localhost:8082
+```
 
 ## Running Locally
 
@@ -143,14 +142,14 @@ docker build -t sboot-security-base-api-gateway:latest .
 Run container:
 
 ```bash
-docker run --rm -p 8080:8080 \
-  -e JWT_HS512_SECRET=YmFzaWNfY3JlZGVudGlhbC5zZWNyZXQta2V5LWZvci1zYWFzLWhvbGVyaXRlLWJmZi1nYXRld2F5 \
+docker run --rm -p 8081:8081 \
+  -e JWT_HS512_SECRET=... \
+  -e PAYROLL_QUERY_SERVICE_URL=http://host.docker.internal:8082 \
   sboot-security-base-api-gateway:latest
 ```
 
 ## Production Notes
 
-- For distributed rate limiting, replace in-memory limiter with Redis-based limiter.
-- Ensure tokens include required audience/issuer claims and validate them in policy.
-- Use centralized log aggregation and propagate correlation IDs to downstream services.
-- Prefer mTLS and private networking between gateway and downstream services.
+- Ensure `PAYROLL_QUERY_SERVICE_URL` points to the correct service discovery name or load balancer URL.
+- Validate that JWT tokens contain the required `companyId` and `employeeId` claims.
+- Monitor `X-Response-Time-Ms` headers for performance tracking.

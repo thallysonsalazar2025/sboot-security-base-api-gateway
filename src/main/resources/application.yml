@@ -37,3 +37,7 @@ security:
     # Use a variavel de ambiente JWT_HS512_SECRET em producao.
     # Para HS512, recomenda-se um segredo com 64+ bytes de entropia.
     hmac-secret: ${JWT_HS512_SECRET:YmFzaWNfY3JlZGVudGlhbC5zZWNyZXQta2V5LWZvci1zYWFzLWhvbGVyaXRlLWJmZi1nYXRld2F5}
+
+services:
+  payroll-query:
+    url: ${PAYROLL_QUERY_SERVICE_URL:http://localhost:8082}

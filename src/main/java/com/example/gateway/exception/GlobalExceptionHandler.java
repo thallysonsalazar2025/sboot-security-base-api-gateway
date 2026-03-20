@@ -17,17 +17,6 @@ public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
     private static final String CORRELATION_ID_HEADER = "X-Correlation-Id";
 
-    @ExceptionHandler(FileGenerationException.class)
-    public ProblemDetail handleFileGeneration(FileGenerationException ex) {
-        String correlationId = MDC.get(CORRELATION_ID_HEADER);
-        log.error("Erro ao gerar arquivo correlationId={}", correlationId, ex);
-
-        ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, "Falha ao gerar arquivo");
-        pd.setTitle("File generation error");
-        pd.setProperty("correlationId", correlationId);
-        pd.setProperty("timestamp", Instant.now().toString());
-        return pd;
-    }
 
     @ExceptionHandler(UncheckedIOException.class)
     public ProblemDetail handleUncheckedIO(UncheckedIOException ex) {
