@@ -42,6 +42,23 @@ public class PayrollIntegrationTest {
                 .jsonPath("$.data").isEqualTo("payroll-data");
     }
 
+
+    @Test
+    void shouldReturnCorrelationIdHeader() {
+        WireMock.stubFor(WireMock.post("/payroll")
+                .willReturn(WireMock.aResponse()
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"data\":\"payroll-data\"}")
+                        .withStatus(200)));
+
+        webTestClient.mutateWith(mockJwt()
+                .jwt(jwt -> jwt.claim("companyId", "123").claim("employeeId", "456")))
+                .get().uri("/api/v1/payroll?year=2023&month=5")
+                .exchange()
+                .expectStatus().isOk()
+                .expectHeader().exists("X-Correlation-Id");
+    }
+
     @Test
     void shouldReturnForbiddenWhenMissingClaims() {
         webTestClient.mutateWith(mockJwt()

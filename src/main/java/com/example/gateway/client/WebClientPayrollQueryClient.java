@@ -1,6 +1,8 @@
 package com.example.gateway.client;
 
 import com.example.gateway.dto.PayrollRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
@@ -9,6 +11,8 @@ import reactor.core.publisher.Mono;
 
 @Component
 public class WebClientPayrollQueryClient implements PayrollQueryClient {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(WebClientPayrollQueryClient.class);
 
     private final WebClient webClient;
 
@@ -22,6 +26,8 @@ public class WebClientPayrollQueryClient implements PayrollQueryClient {
         return webClient.post()
                 .uri("/payroll")
                 .bodyValue(request)
-                .exchangeToMono(response -> response.toEntity(Object.class));
+                .exchangeToMono(response -> response.toEntity(Object.class))
+                .doOnSuccess(response -> LOGGER.info("Downstream payroll-query-service status={}", response.getStatusCode()))
+                .doOnError(error -> LOGGER.error("Downstream payroll-query-service call failed", error));
     }
 }

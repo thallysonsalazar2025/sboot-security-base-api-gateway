@@ -16,6 +16,7 @@ import reactor.core.publisher.Mono;
 public class CorrelationIdFilter implements GlobalFilter, Ordered {
 
     public static final String CORRELATION_ID_HEADER = "X-Correlation-Id";
+    public static final String CORRELATION_ID_MDC_KEY = "correlationId";
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -30,11 +31,18 @@ public class CorrelationIdFilter implements GlobalFilter, Ordered {
                 .build();
 
         ServerWebExchange mutatedExchange = exchange.mutate().request(requestWithCorrelationId).build();
+        mutatedExchange.getResponse().getHeaders().set(CORRELATION_ID_HEADER, correlationId);
 
         return chain.filter(mutatedExchange)
                 .contextWrite(context -> context.put(CORRELATION_ID_HEADER, correlationId))
-                .doFirst(() -> MDC.put(CORRELATION_ID_HEADER, correlationId))
-                .doFinally(signal -> MDC.remove(CORRELATION_ID_HEADER));
+                .doFirst(() -> {
+                    MDC.put(CORRELATION_ID_HEADER, correlationId);
+                    MDC.put(CORRELATION_ID_MDC_KEY, correlationId);
+                })
+                .doFinally(signal -> {
+                    MDC.remove(CORRELATION_ID_HEADER);
+                    MDC.remove(CORRELATION_ID_MDC_KEY);
+                });
     }
 
     @Override

@@ -30,6 +30,11 @@ logging:
   level:
     root: INFO
     com.example.gateway: INFO
+  elasticsearch:
+    enabled: ${LOG_ELASTICSEARCH_ENABLED:true}
+    endpoint: ${LOG_ELASTICSEARCH_ENDPOINT:https://my-elasticsearch-project-f23ad4.es.us-central1.gcp.elastic.cloud:443}
+    index: ${LOG_ELASTICSEARCH_INDEX:sboot-security-base-api-gateway-logs}
+    api-key: ${LOG_ELASTICSEARCH_API_KEY:}
 
 security:
   jwt:
