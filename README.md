@@ -26,7 +26,6 @@ Service        Service         Service
    Status Service
            ↓
    Notification Service (opcional)
-
 ```
 
 ## Responsibilities
@@ -48,44 +47,43 @@ This gateway acts as the entry point for the Payroll system, handling:
 - Spring WebClient
 - Maven
 
-## Project Structure
+## CorrelationId e Logging para Kibana/Elasticsearch
 
-```text
-.
-├── Dockerfile
-├── pom.xml
-├── README.md
-└── src
-    ├── main
-    │   ├── java/com/example/gateway
-    │   │   ├── SbootSecurityBaseApiGatewayApplication.java
-    │   │   ├── client
-    │   │   │   ├── PayrollQueryClient.java
-    │   │   │   └── WebClientPayrollQueryClient.java
-    │   │   ├── config
-    │   │   │   ├── CorsGlobalConfig.java
-    │   │   │   ├── HmacJwtDecoderConfig.java
-    │   │   │   ├── OutboundAuthPropagationConfig.java
-    │   │   │   └── SecurityConfig.java
-    │   │   ├── controller
-    │   │   │   └── PayrollController.java
-    │   │   ├── dto
-    │   │   │   └── PayrollRequest.java
-    │   │   ├── filter
-    │   │   │   ├── CorrelationIdFilter.java
-    │   │   │   ├── RateLimitingFilter.java
-    │   │   │   ├── RequestLoggingFilter.java
-    │   │   │   └── RequestTimingFilter.java
-    │   │   ├── security
-    │   │   │   └── JwtAuthenticationFilter.java
-    │   │   └── service
-    │   │       ├── PayrollService.java
-    │   │       └── PayrollServiceImpl.java
-    │   └── resources
-    │       └── application.yml
-    └── test
-        └── java/com/example/gateway
+- O gateway adiciona `X-Correlation-Id` automaticamente quando a requisição não traz o header.
+- O mesmo `correlationId` é propagado para MDC e para logs de controller/service/client.
+- Foi adicionada publicação de logs para Elasticsearch (compatível com visualização no Kibana).
+
+### Variáveis de ambiente de logging
+
+```bash
+LOG_ELASTICSEARCH_ENABLED=true
+LOG_ELASTICSEARCH_ENDPOINT=https://my-elasticsearch-project-f23ad4.es.us-central1.gcp.elastic.cloud:443
+LOG_ELASTICSEARCH_INDEX=sboot-security-base-api-gateway-logs
+LOG_ELASTICSEARCH_API_KEY=<api_key_elastic>
 ```
+
+> Observação: Em Elastic Cloud, normalmente é necessário `LOG_ELASTICSEARCH_API_KEY` válido para indexação.
+
+## Ambiente E2E com todos os componentes
+
+Foi adicionado o arquivo `docker-compose.e2e.yml` com os componentes solicitados e seus encadeamentos principais via HTTP + RabbitMQ.
+
+### Subir ambiente
+
+```bash
+docker compose -f docker-compose.e2e.yml up -d --build
+```
+
+### Validar fluxo básico E2E (exemplo)
+
+```bash
+curl -i 'http://localhost:8081/api/v1/payroll?year=2026&month=4' \
+  -H "Authorization: Bearer <jwt_valido>" \
+  -H "X-Correlation-Id: e2e-2026-04-06-001"
+```
+
+- Verifique no retorno o header `X-Correlation-Id`.
+- Consulte no Kibana pelo campo `correlationId:"e2e-2026-04-06-001"` para acompanhar o fluxo ponta a ponta.
 
 ## Security
 
@@ -98,18 +96,6 @@ Set the HMAC secret via env var:
 ```bash
 JWT_HS512_SECRET=YmFzaWNfY3JlZGVudGlhbC5zZWNyZXQta2V5LWZvci1zYWFzLWhvbGVyaXRlLWJmZi1nYXRld2F5
 ```
-
-## API Endpoints
-
-### Payroll Query
-
-- **Endpoint**: `GET /api/v1/payroll`
-- **Parameters**:
-  - `year` (int): Year of the payroll period (YYYY)
-  - `month` (int): Month of the payroll period (MM)
-- **Headers**:
-  - `Authorization`: `Bearer <valid_jwt_token>`
-- **Description**: Retrieves payroll information for the authenticated user based on the provided period. The gateway enriches the request with `companyId` and `employeeId` from the token before forwarding it to the backend service.
 
 ## Configuration
 
@@ -145,11 +131,8 @@ Run container:
 docker run --rm -p 8081:8081 \
   -e JWT_HS512_SECRET=... \
   -e PAYROLL_QUERY_SERVICE_URL=http://host.docker.internal:8082 \
+  -e LOG_ELASTICSEARCH_ENABLED=true \
+  -e LOG_ELASTICSEARCH_ENDPOINT=https://my-elasticsearch-project-f23ad4.es.us-central1.gcp.elastic.cloud:443 \
+  -e LOG_ELASTICSEARCH_API_KEY=... \
   sboot-security-base-api-gateway:latest
 ```
-
-## Production Notes
-
-- Ensure `PAYROLL_QUERY_SERVICE_URL` points to the correct service discovery name or load balancer URL.
-- Validate that JWT tokens contain the required `companyId` and `employeeId` claims.
-- Monitor `X-Response-Time-Ms` headers for performance tracking.

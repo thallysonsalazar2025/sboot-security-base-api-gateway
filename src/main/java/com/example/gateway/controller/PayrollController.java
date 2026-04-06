@@ -1,6 +1,8 @@
 package com.example.gateway.controller;
 
 import com.example.gateway.service.PayrollService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -15,6 +17,8 @@ import reactor.core.publisher.Mono;
 @RestController
 @RequestMapping("/api/v1")
 public class PayrollController {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(PayrollController.class);
 
     private final PayrollService payrollService;
 
@@ -31,10 +35,21 @@ public class PayrollController {
         String companyId = jwt.getClaimAsString("companyId");
         String employeeId = jwt.getClaimAsString("employeeId");
 
+        LOGGER.info("Payroll request received companyId={} employeeId={} period={}-{}",
+                companyId,
+                employeeId,
+                year,
+                month);
+
         if (companyId == null || employeeId == null) {
+            LOGGER.warn("Payroll request rejected: required claims missing");
             return Mono.error(new ResponseStatusException(HttpStatus.FORBIDDEN, "User context missing required claims"));
         }
 
-        return payrollService.getPayroll(companyId, employeeId, year, month);
+        return payrollService.getPayroll(companyId, employeeId, year, month)
+                .doOnSuccess(response -> LOGGER.info("Payroll request completed status={} period={}-{}",
+                        response.getStatusCode(),
+                        year,
+                        month));
     }
 }
