@@ -51,26 +51,25 @@ This gateway acts as the entry point for the Payroll system, handling:
 
 - O gateway adiciona `X-Correlation-Id` automaticamente quando a requisição não traz o header.
 - O mesmo `correlationId` é propagado para MDC e para logs de controller/service/client.
-- Foi adicionada publicação de logs para Elasticsearch (compatível com visualização no Kibana).
+- A publicação remota para Elasticsearch é opt-in no ambiente E2E para evitar envio acidental de logs de testes.
 
 ### Variáveis de ambiente de logging
 
 ```bash
 LOG_ELASTICSEARCH_ENABLED=true
-LOG_ELASTICSEARCH_ENDPOINT=https://my-elasticsearch-project-f23ad4.es.us-central1.gcp.elastic.cloud:443
+LOG_ELASTICSEARCH_ENDPOINT=https://<seu-cluster-elastic>:443
 LOG_ELASTICSEARCH_INDEX=sboot-security-base-api-gateway-logs
 LOG_ELASTICSEARCH_API_KEY=<api_key_elastic>
 ```
 
-> Observação: Em Elastic Cloud, normalmente é necessário `LOG_ELASTICSEARCH_API_KEY` válido para indexação.
-
 ## Ambiente E2E com todos os componentes
 
-Foi adicionado o arquivo `docker-compose.e2e.yml` com os componentes solicitados e seus encadeamentos principais via HTTP + RabbitMQ.
+Foi adicionado o arquivo `docker-compose.e2e.yml` com os componentes solicitados e seus encadeamentos principais via HTTP + RabbitMQ. O compose exige que `JWT_HS512_SECRET` seja fornecido explicitamente e aguarda o RabbitMQ ficar saudável antes de iniciar consumidores/dependentes.
 
 ### Subir ambiente
 
 ```bash
+export JWT_HS512_SECRET='<segredo-hs512-de-teste-com-entropia-suficiente>'
 docker compose -f docker-compose.e2e.yml up -d --build
 ```
 
@@ -83,18 +82,19 @@ curl -i 'http://localhost:8081/api/v1/payroll?year=2026&month=4' \
 ```
 
 - Verifique no retorno o header `X-Correlation-Id`.
-- Consulte no Kibana pelo campo `correlationId:"e2e-2026-04-06-001"` para acompanhar o fluxo ponta a ponta.
+- Se o logging remoto tiver sido habilitado explicitamente, consulte o observability backend pelo `correlationId` para acompanhar o fluxo ponta a ponta.
 
 ## Security
 
 - JWT tokens are validated locally with HMAC `HS512`.
 - The gateway extracts `companyId` and `employeeId` claims to authorize access to payroll data.
 - All endpoints under `/api/v1` require authentication.
+- Não existe segredo JWT padrão no compose E2E: `JWT_HS512_SECRET` é obrigatório no startup.
 
 Set the HMAC secret via env var:
 
 ```bash
-JWT_HS512_SECRET=YmFzaWNfY3JlZGVudGlhbC5zZWNyZXQta2V5LWZvci1zYWFzLWhvbGVyaXRlLWJmZi1nYXRld2F5
+JWT_HS512_SECRET=<segredo-hs512-gerenciado-fora-do-repositorio>
 ```
 
 ## Configuration
@@ -132,7 +132,7 @@ docker run --rm -p 8081:8081 \
   -e JWT_HS512_SECRET=... \
   -e PAYROLL_QUERY_SERVICE_URL=http://host.docker.internal:8082 \
   -e LOG_ELASTICSEARCH_ENABLED=true \
-  -e LOG_ELASTICSEARCH_ENDPOINT=https://my-elasticsearch-project-f23ad4.es.us-central1.gcp.elastic.cloud:443 \
+  -e LOG_ELASTICSEARCH_ENDPOINT=https://<seu-cluster-elastic>:443 \
   -e LOG_ELASTICSEARCH_API_KEY=... \
   sboot-security-base-api-gateway:latest
 ```
