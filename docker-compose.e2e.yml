@@ -30,10 +30,10 @@ services:
     ports:
       - "8081:8081"
     environment:
-      JWT_HS512_SECRET: ${JWT_HS512_SECRET:-YmFzaWNfY3JlZGVudGlhbC5zZWNyZXQta2V5LWZvci1zYWFzLWhvbGVyaXRlLWJmZi1nYXRld2F5}
+      JWT_HS512_SECRET: ${JWT_HS512_SECRET:?JWT_HS512_SECRET is required}
       PAYROLL_QUERY_SERVICE_URL: http://sboot-payroll-query-service:8080
-      LOG_ELASTICSEARCH_ENABLED: "true"
-      LOG_ELASTICSEARCH_ENDPOINT: https://my-elasticsearch-project-f23ad4.es.us-central1.gcp.elastic.cloud:443
+      LOG_ELASTICSEARCH_ENABLED: ${LOG_ELASTICSEARCH_ENABLED:-false}
+      LOG_ELASTICSEARCH_ENDPOINT: ${LOG_ELASTICSEARCH_ENDPOINT:-}
       LOG_ELASTICSEARCH_API_KEY: ${LOG_ELASTICSEARCH_API_KEY:-}
       SPRING_RABBITMQ_HOST: rabbitmq
     depends_on:
