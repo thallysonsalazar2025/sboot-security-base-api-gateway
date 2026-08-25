@@ -7,6 +7,12 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
 
   sboot-security-base-auth-service:
     image: sboot-security-base-auth-service:latest
@@ -14,7 +20,8 @@ services:
     environment:
       SPRING_RABBITMQ_HOST: rabbitmq
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
 
   sboot-security-base-api-gateway:
     build:
@@ -23,16 +30,19 @@ services:
     ports:
       - "8081:8081"
     environment:
-      JWT_HS512_SECRET: ${JWT_HS512_SECRET:-YmFzaWNfY3JlZGVudGlhbC5zZWNyZXQta2V5LWZvci1zYWFzLWhvbGVyaXRlLWJmZi1nYXRld2F5}
+      JWT_HS512_SECRET: ${JWT_HS512_SECRET:?JWT_HS512_SECRET is required}
       PAYROLL_QUERY_SERVICE_URL: http://sboot-payroll-query-service:8080
-      LOG_ELASTICSEARCH_ENABLED: "true"
-      LOG_ELASTICSEARCH_ENDPOINT: https://my-elasticsearch-project-f23ad4.es.us-central1.gcp.elastic.cloud:443
+      LOG_ELASTICSEARCH_ENABLED: ${LOG_ELASTICSEARCH_ENABLED:-false}
+      LOG_ELASTICSEARCH_ENDPOINT: ${LOG_ELASTICSEARCH_ENDPOINT:-}
       LOG_ELASTICSEARCH_API_KEY: ${LOG_ELASTICSEARCH_API_KEY:-}
       SPRING_RABBITMQ_HOST: rabbitmq
     depends_on:
-      - sboot-payroll-query-service
-      - sboot-security-base-auth-service
-      - rabbitmq
+      sboot-payroll-query-service:
+        condition: service_started
+      sboot-security-base-auth-service:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
 
   sboot-payroll-query-service:
     image: sboot-payroll-query-service:latest
@@ -41,8 +51,10 @@ services:
       SPRING_RABBITMQ_HOST: rabbitmq
       PAYROLL_ORCHESTRATOR_URL: http://boot-payroll-orchestrator-service:8080
     depends_on:
-      - boot-payroll-orchestrator-service
-      - rabbitmq
+      boot-payroll-orchestrator-service:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
 
   boot-payroll-orchestrator-service:
     image: boot-payroll-orchestrator-service:latest
@@ -55,12 +67,18 @@ services:
       PAYROLL_PROCESSOR_URL: http://sboot-payroll-generation-processor:8080
       PAYROLL_EVENTS_URL: http://sboot-payroll-events-service:8080
     depends_on:
-      - payroll-generation-request-publisher
-      - sboot-payroll-validation-service
-      - sboot-payroll-calculation-service
-      - sboot-payroll-generation-processor
-      - sboot-payroll-events-service
-      - rabbitmq
+      payroll-generation-request-publisher:
+        condition: service_started
+      sboot-payroll-validation-service:
+        condition: service_started
+      sboot-payroll-calculation-service:
+        condition: service_started
+      sboot-payroll-generation-processor:
+        condition: service_started
+      sboot-payroll-events-service:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
 
   payroll-generation-request-publisher:
     image: payroll-generation-request-publisher:latest
@@ -68,7 +86,8 @@ services:
     environment:
       SPRING_RABBITMQ_HOST: rabbitmq
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
 
   sboot-payroll-generation-processor:
     image: sboot-payroll-generation-processor:latest
@@ -79,10 +98,14 @@ services:
       COMPANY_SERVICE_URL: http://sboot-data-company-serice:8080
       TIME_TRACKING_URL: http://sboot-time-tracking-integration-service:8080
     depends_on:
-      - sboot-data-employe-serice
-      - sboot-data-company-serice
-      - sboot-time-tracking-integration-service
-      - rabbitmq
+      sboot-data-employe-serice:
+        condition: service_started
+      sboot-data-company-serice:
+        condition: service_started
+      sboot-time-tracking-integration-service:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
 
   sboot-payroll-calculation-service:
     image: sboot-payroll-calculation-service:latest
@@ -90,7 +113,8 @@ services:
     environment:
       SPRING_RABBITMQ_HOST: rabbitmq
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
 
   sboot-data-employe-serice:
     image: sboot-data-employe-serice:latest
@@ -106,7 +130,8 @@ services:
     environment:
       SPRING_RABBITMQ_HOST: rabbitmq
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
 
   sboot-payroll-validation-service:
     image: sboot-payroll-validation-service:latest
@@ -116,9 +141,12 @@ services:
       EMPLOYEE_SERVICE_URL: http://sboot-data-employe-serice:8080
       COMPANY_SERVICE_URL: http://sboot-data-company-serice:8080
     depends_on:
-      - sboot-data-employe-serice
-      - sboot-data-company-serice
-      - rabbitmq
+      sboot-data-employe-serice:
+        condition: service_started
+      sboot-data-company-serice:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
 
   sboot-time-tracking-integration-service:
     image: sboot-time-tracking-integration-service:latest
@@ -126,4 +154,5 @@ services:
     environment:
       SPRING_RABBITMQ_HOST: rabbitmq
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
