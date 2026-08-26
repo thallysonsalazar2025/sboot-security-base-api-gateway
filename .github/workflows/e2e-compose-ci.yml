@@ -9,6 +9,7 @@ on:
       - '.gitignore'
       - 'src/main/resources/application.yml'
       - 'scripts/e2e-up.sh'
+      - 'scripts/e2e-smoke.sh'
       - 'README.md'
       - '.github/workflows/e2e-compose-ci.yml'
   workflow_dispatch:
@@ -54,8 +55,12 @@ jobs:
           grep -Eq '^\.env\.\*$' .gitignore
           ! git ls-files --error-unmatch .env >/dev/null 2>&1
 
-      - name: Validate one-command E2E launcher
+      - name: Validate E2E launchers
         run: |
           sh -n scripts/e2e-up.sh
+          sh -n scripts/e2e-smoke.sh
           grep -Fq 'docker compose' scripts/e2e-up.sh
           grep -Fq -- '--wait' scripts/e2e-up.sh
+          grep -Fq 'TENANT_A_TOKEN' scripts/e2e-smoke.sh
+          grep -Fq 'TENANT_B_TOKEN' scripts/e2e-smoke.sh
+          grep -Fq 'X-Correlation-Id' scripts/e2e-smoke.sh
