@@ -2,7 +2,12 @@
 set -eu
 
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.e2e.yml}"
-JWT_HS512_SECRET="${JWT_HS512_SECRET:-e2e-local-only-hs512-secret-change-me-0123456789abcdefghijklmnopqrstuvwxyz}"
+
+if [ -z "${JWT_HS512_SECRET:-}" ]; then
+  echo "JWT_HS512_SECRET is required. Copy .env.example to .env or export a local E2E secret before starting." >&2
+  exit 2
+fi
+
 export JWT_HS512_SECRET
 
 cleanup_on_failure() {
