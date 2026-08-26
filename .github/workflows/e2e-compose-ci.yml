@@ -8,6 +8,8 @@ on:
       - '.env.example'
       - '.gitignore'
       - 'src/main/resources/application.yml'
+      - 'scripts/e2e-up.sh'
+      - 'README.md'
       - '.github/workflows/e2e-compose-ci.yml'
   workflow_dispatch:
 
@@ -51,3 +53,9 @@ jobs:
           grep -Eq '^\.env$' .gitignore
           grep -Eq '^\.env\.\*$' .gitignore
           ! git ls-files --error-unmatch .env >/dev/null 2>&1
+
+      - name: Validate one-command E2E launcher
+        run: |
+          sh -n scripts/e2e-up.sh
+          grep -Fq 'docker compose' scripts/e2e-up.sh
+          grep -Fq -- '--wait' scripts/e2e-up.sh
