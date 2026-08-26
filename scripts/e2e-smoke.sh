@@ -12,6 +12,11 @@ if [ -z "$TENANT_A_TOKEN" ] || [ -z "$TENANT_B_TOKEN" ]; then
   exit 2
 fi
 
+if [ "$TENANT_A_TOKEN" = "$TENANT_B_TOKEN" ]; then
+  echo "TENANT_A_TOKEN and TENANT_B_TOKEN must represent distinct tenant identities." >&2
+  exit 2
+fi
+
 request() {
   token="$1"
   path="$2"
