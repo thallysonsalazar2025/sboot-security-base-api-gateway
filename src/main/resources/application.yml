@@ -39,9 +39,9 @@ logging:
 security:
   jwt:
     # Estrategia ativa de autenticacao do gateway: JWT HMAC HS512 com segredo compartilhado.
-    # Use a variavel de ambiente JWT_HS512_SECRET em producao.
-    # Para HS512, recomenda-se um segredo com 64+ bytes de entropia.
-    hmac-secret: ${JWT_HS512_SECRET:YmFzaWNfY3JlZGVudGlhbC5zZWNyZXQta2V5LWZvci1zYWFzLWhvbGVyaXRlLWJmZi1nYXRld2F5}
+    # JWT_HS512_SECRET e obrigatorio para evitar fallback versionado e falsificacao de tokens.
+    # Para HS512, use um segredo com pelo menos 64 bytes de entropia.
+    hmac-secret: ${JWT_HS512_SECRET}
 
 services:
   payroll-query:
