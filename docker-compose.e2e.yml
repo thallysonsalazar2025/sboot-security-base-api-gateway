@@ -1,5 +1,12 @@
 version: "3.9"
 
+x-spring-healthcheck: &spring-healthcheck
+  test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/actuator/health || exit 1"]
+  interval: 10s
+  timeout: 5s
+  retries: 18
+  start_period: 30s
+
 services:
   rabbitmq:
     image: rabbitmq:3.13-management
@@ -19,6 +26,7 @@ services:
     container_name: sboot-security-base-auth-service
     environment:
       SPRING_RABBITMQ_HOST: rabbitmq
+    healthcheck: *spring-healthcheck
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -36,11 +44,17 @@ services:
       LOG_ELASTICSEARCH_ENDPOINT: ${LOG_ELASTICSEARCH_ENDPOINT:-}
       LOG_ELASTICSEARCH_API_KEY: ${LOG_ELASTICSEARCH_API_KEY:-}
       SPRING_RABBITMQ_HOST: rabbitmq
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8081/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 30s
     depends_on:
       sboot-payroll-query-service:
-        condition: service_started
+        condition: service_healthy
       sboot-security-base-auth-service:
-        condition: service_started
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
 
@@ -50,9 +64,10 @@ services:
     environment:
       SPRING_RABBITMQ_HOST: rabbitmq
       PAYROLL_ORCHESTRATOR_URL: http://boot-payroll-orchestrator-service:8080
+    healthcheck: *spring-healthcheck
     depends_on:
       boot-payroll-orchestrator-service:
-        condition: service_started
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
 
@@ -66,17 +81,18 @@ services:
       PAYROLL_CALCULATION_URL: http://sboot-payroll-calculation-service:8080
       PAYROLL_PROCESSOR_URL: http://sboot-payroll-generation-processor:8080
       PAYROLL_EVENTS_URL: http://sboot-payroll-events-service:8080
+    healthcheck: *spring-healthcheck
     depends_on:
       payroll-generation-request-publisher:
-        condition: service_started
+        condition: service_healthy
       sboot-payroll-validation-service:
-        condition: service_started
+        condition: service_healthy
       sboot-payroll-calculation-service:
-        condition: service_started
+        condition: service_healthy
       sboot-payroll-generation-processor:
-        condition: service_started
+        condition: service_healthy
       sboot-payroll-events-service:
-        condition: service_started
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
 
@@ -85,6 +101,7 @@ services:
     container_name: payroll-generation-request-publisher
     environment:
       SPRING_RABBITMQ_HOST: rabbitmq
+    healthcheck: *spring-healthcheck
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -97,13 +114,14 @@ services:
       EMPLOYEE_SERVICE_URL: http://sboot-data-employe-serice:8080
       COMPANY_SERVICE_URL: http://sboot-data-company-serice:8080
       TIME_TRACKING_URL: http://sboot-time-tracking-integration-service:8080
+    healthcheck: *spring-healthcheck
     depends_on:
       sboot-data-employe-serice:
-        condition: service_started
+        condition: service_healthy
       sboot-data-company-serice:
-        condition: service_started
+        condition: service_healthy
       sboot-time-tracking-integration-service:
-        condition: service_started
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
 
@@ -112,6 +130,7 @@ services:
     container_name: sboot-payroll-calculation-service
     environment:
       SPRING_RABBITMQ_HOST: rabbitmq
+    healthcheck: *spring-healthcheck
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -119,16 +138,19 @@ services:
   sboot-data-employe-serice:
     image: sboot-data-employe-serice:latest
     container_name: sboot-data-employe-serice
+    healthcheck: *spring-healthcheck
 
   sboot-data-company-serice:
     image: sboot-data-company-serice:latest
     container_name: sboot-data-company-serice
+    healthcheck: *spring-healthcheck
 
   sboot-payroll-events-service:
     image: sboot-payroll-events-service:latest
     container_name: sboot-payroll-events-service
     environment:
       SPRING_RABBITMQ_HOST: rabbitmq
+    healthcheck: *spring-healthcheck
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -140,11 +162,12 @@ services:
       SPRING_RABBITMQ_HOST: rabbitmq
       EMPLOYEE_SERVICE_URL: http://sboot-data-employe-serice:8080
       COMPANY_SERVICE_URL: http://sboot-data-company-serice:8080
+    healthcheck: *spring-healthcheck
     depends_on:
       sboot-data-employe-serice:
-        condition: service_started
+        condition: service_healthy
       sboot-data-company-serice:
-        condition: service_started
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
 
@@ -153,6 +176,7 @@ services:
     container_name: sboot-time-tracking-integration-service
     environment:
       SPRING_RABBITMQ_HOST: rabbitmq
+    healthcheck: *spring-healthcheck
     depends_on:
       rabbitmq:
         condition: service_healthy
