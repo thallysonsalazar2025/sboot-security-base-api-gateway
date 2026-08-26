@@ -27,6 +27,9 @@ assert_authenticated() {
   status="$(request "$token" "/api/v1/payroll?year=$SMOKE_YEAR&month=$SMOKE_MONTH")"
 
   case "$status" in
+    2??|3??|404)
+      echo "Tenant $tenant token was accepted by the protected payroll endpoint (HTTP $status)."
+      ;;
     401|403)
       echo "Authenticated gateway smoke failed for tenant $tenant: protected endpoint returned HTTP $status." >&2
       exit 1
@@ -35,8 +38,17 @@ assert_authenticated() {
       echo "Authenticated gateway smoke failed for tenant $tenant: gateway was unreachable." >&2
       exit 1
       ;;
+    4??)
+      echo "Authenticated gateway smoke failed for tenant $tenant: unexpected client error HTTP $status." >&2
+      exit 1
+      ;;
+    5??)
+      echo "Authenticated gateway smoke failed for tenant $tenant: downstream/server error HTTP $status." >&2
+      exit 1
+      ;;
     *)
-      echo "Tenant $tenant token was accepted by the protected payroll endpoint (HTTP $status)."
+      echo "Authenticated gateway smoke failed for tenant $tenant: unexpected HTTP status $status." >&2
+      exit 1
       ;;
   esac
 }
