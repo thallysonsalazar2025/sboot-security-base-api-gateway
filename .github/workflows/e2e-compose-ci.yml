@@ -5,6 +5,8 @@ on:
     branches: [master]
     paths:
       - 'docker-compose.e2e.yml'
+      - '.env.example'
+      - '.gitignore'
       - '.github/workflows/e2e-compose-ci.yml'
   workflow_dispatch:
 
@@ -37,3 +39,12 @@ jobs:
         run: |
           grep -Fq 'JWT_HS512_SECRET: ${JWT_HS512_SECRET:?JWT_HS512_SECRET is required}' docker-compose.e2e.yml
           grep -Fq 'LOG_ELASTICSEARCH_ENABLED: ${LOG_ELASTICSEARCH_ENABLED:-false}' docker-compose.e2e.yml
+
+      - name: Verify local secret hygiene
+        run: |
+          test -f .env.example
+          grep -Eq '^JWT_HS512_SECRET=$' .env.example
+          grep -Eq '^LOG_ELASTICSEARCH_ENABLED=false$' .env.example
+          grep -Eq '^\.env$' .gitignore
+          grep -Eq '^\.env\.\*$' .gitignore
+          ! git ls-files --error-unmatch .env >/dev/null 2>&1
