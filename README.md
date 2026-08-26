@@ -64,14 +64,21 @@ LOG_ELASTICSEARCH_API_KEY=<api_key_elastic>
 
 ## Ambiente E2E com todos os componentes
 
-Foi adicionado o arquivo `docker-compose.e2e.yml` com os componentes solicitados e seus encadeamentos principais via HTTP + RabbitMQ. O compose exige que `JWT_HS512_SECRET` seja fornecido explicitamente e aguarda o RabbitMQ ficar saudável antes de iniciar consumidores/dependentes.
+`docker-compose.e2e.yml` contém os componentes do caminho principal e health gates para RabbitMQ e serviços Spring.
 
-### Subir ambiente
+### Subir ambiente em um comando
 
 ```bash
-export JWT_HS512_SECRET='<segredo-hs512-de-teste-com-entropia-suficiente>'
-docker compose -f docker-compose.e2e.yml up -d --build
+sh scripts/e2e-up.sh
 ```
+
+O script usa um segredo HS512 exclusivamente local quando `JWT_HS512_SECRET` não é informado, executa `docker compose up --build --wait` e só retorna sucesso quando todos os healthchecks estiverem verdes. Para fornecer seu próprio segredo de teste:
+
+```bash
+JWT_HS512_SECRET='<segredo-hs512-de-teste-com-entropia-suficiente>' sh scripts/e2e-up.sh
+```
+
+O segredo local do script não deve ser usado fora do ambiente E2E.
 
 ### Validar fluxo básico E2E (exemplo)
 
@@ -89,7 +96,7 @@ curl -i 'http://localhost:8081/api/v1/payroll?year=2026&month=4' \
 - JWT tokens are validated locally with HMAC `HS512`.
 - The gateway extracts `companyId` and `employeeId` claims to authorize access to payroll data.
 - All endpoints under `/api/v1` require authentication.
-- Não existe segredo JWT padrão no compose E2E: `JWT_HS512_SECRET` é obrigatório no startup.
+- Não existe segredo JWT padrão na configuração da aplicação ou no compose E2E; ambientes compartilhados devem fornecer `JWT_HS512_SECRET` externamente.
 
 Set the HMAC secret via env var:
 
