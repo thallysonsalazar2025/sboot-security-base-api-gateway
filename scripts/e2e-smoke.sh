@@ -23,15 +23,41 @@ request() {
   correlation_id="$3"
   headers_file="$(mktemp)"
 
-  status="$(curl --silent --show-error --output /dev/null --dump-header "$headers_file" --write-out '%{http_code}' \
-    -H "Authorization: Bearer $token" \
-    -H "X-Correlation-Id: $correlation_id" \
-    "$GATEWAY_URL$path")"
+  if [ -n "$token" ]; then
+    status="$(curl --silent --show-error --output /dev/null --dump-header "$headers_file" --write-out '%{http_code}' \
+      -H "Authorization: Bearer $token" \
+      -H "X-Correlation-Id: $correlation_id" \
+      "$GATEWAY_URL$path")"
+  else
+    status="$(curl --silent --show-error --output /dev/null --dump-header "$headers_file" --write-out '%{http_code}' \
+      -H "X-Correlation-Id: $correlation_id" \
+      "$GATEWAY_URL$path")"
+  fi
 
   response_correlation_id="$(awk 'tolower($1) == "x-correlation-id:" {gsub("\r", "", $2); print $2; exit}' "$headers_file")"
   rm -f "$headers_file"
 
   printf '%s|%s\n' "$status" "$response_correlation_id"
+}
+
+assert_unauthenticated_rejected() {
+  correlation_id="e2e-smoke-unauthenticated-$(date +%s)-$$"
+  response="$(request "" "/api/v1/payroll?year=$SMOKE_YEAR&month=$SMOKE_MONTH" "$correlation_id")"
+  status="${response%%|*}"
+
+  case "$status" in
+    401|403)
+      echo "Unauthenticated request was rejected by the protected payroll endpoint (HTTP $status)."
+      ;;
+    000)
+      echo "Unauthenticated gateway smoke failed: gateway was unreachable." >&2
+      exit 1
+      ;;
+    *)
+      echo "Unauthenticated gateway smoke failed: protected endpoint returned HTTP $status without a token." >&2
+      exit 1
+      ;;
+  esac
 }
 
 assert_authenticated() {
@@ -73,6 +99,9 @@ assert_authenticated() {
       ;;
   esac
 }
+
+echo "Checking that unauthenticated access is rejected..."
+assert_unauthenticated_rejected
 
 echo "Checking protected gateway access for tenant A..."
 assert_authenticated "A" "$TENANT_A_TOKEN"
