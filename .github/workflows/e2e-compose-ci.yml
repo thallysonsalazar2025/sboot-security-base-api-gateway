@@ -43,6 +43,7 @@ jobs:
         run: |
           grep -Fq 'JWT_HS512_SECRET: ${JWT_HS512_SECRET:?JWT_HS512_SECRET is required}' docker-compose.e2e.yml
           grep -Fq 'LOG_ELASTICSEARCH_ENABLED: ${LOG_ELASTICSEARCH_ENABLED:-false}' docker-compose.e2e.yml
+          grep -Fq 'enabled: ${LOG_ELASTICSEARCH_ENABLED:false}' src/main/resources/application.yml
           grep -Fq '${JWT_HS512_SECRET}' src/main/resources/application.yml
           ! grep -Eq 'JWT_HS512_SECRET:[^}]' src/main/resources/application.yml
 
