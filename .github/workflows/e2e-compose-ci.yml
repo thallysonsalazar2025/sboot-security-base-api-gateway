@@ -67,3 +67,5 @@ jobs:
           grep -Fq 'X-Correlation-Id' scripts/e2e-smoke.sh
           grep -Fq 'response_correlation_id' scripts/e2e-smoke.sh
           grep -Fq 'correlation id was not preserved' scripts/e2e-smoke.sh
+          grep -Fq 'assert_invalid_token_rejected' scripts/e2e-smoke.sh
+          grep -Fq 'invalid.jwt.token' scripts/e2e-smoke.sh
