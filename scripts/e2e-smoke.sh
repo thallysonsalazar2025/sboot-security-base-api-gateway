@@ -20,20 +20,36 @@ fi
 request() {
   token="$1"
   path="$2"
-  curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+  correlation_id="$3"
+  headers_file="$(mktemp)"
+
+  status="$(curl --silent --show-error --output /dev/null --dump-header "$headers_file" --write-out '%{http_code}' \
     -H "Authorization: Bearer $token" \
-    -H "X-Correlation-Id: e2e-smoke-$(date +%s)" \
-    "$GATEWAY_URL$path"
+    -H "X-Correlation-Id: $correlation_id" \
+    "$GATEWAY_URL$path")"
+
+  response_correlation_id="$(awk 'tolower($1) == "x-correlation-id:" {gsub("\r", "", $2); print $2; exit}' "$headers_file")"
+  rm -f "$headers_file"
+
+  printf '%s|%s\n' "$status" "$response_correlation_id"
 }
 
 assert_authenticated() {
   tenant="$1"
   token="$2"
-  status="$(request "$token" "/api/v1/payroll?year=$SMOKE_YEAR&month=$SMOKE_MONTH")"
+  correlation_id="e2e-smoke-${tenant}-$(date +%s)-$$"
+  response="$(request "$token" "/api/v1/payroll?year=$SMOKE_YEAR&month=$SMOKE_MONTH" "$correlation_id")"
+  status="${response%%|*}"
+  response_correlation_id="${response#*|}"
+
+  if [ "$response_correlation_id" != "$correlation_id" ]; then
+    echo "Authenticated gateway smoke failed for tenant $tenant: correlation id was not preserved (sent=$correlation_id, received=${response_correlation_id:-missing})." >&2
+    exit 1
+  fi
 
   case "$status" in
     2??|3??|404)
-      echo "Tenant $tenant token was accepted by the protected payroll endpoint (HTTP $status)."
+      echo "Tenant $tenant token was accepted by the protected payroll endpoint (HTTP $status) and correlation id was preserved."
       ;;
     401|403)
       echo "Authenticated gateway smoke failed for tenant $tenant: protected endpoint returned HTTP $status." >&2

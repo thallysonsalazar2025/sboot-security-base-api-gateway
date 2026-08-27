@@ -65,3 +65,5 @@ jobs:
           grep -Fq 'TENANT_A_TOKEN' scripts/e2e-smoke.sh
           grep -Fq 'TENANT_B_TOKEN' scripts/e2e-smoke.sh
           grep -Fq 'X-Correlation-Id' scripts/e2e-smoke.sh
+          grep -Fq 'response_correlation_id' scripts/e2e-smoke.sh
+          grep -Fq 'correlation id was not preserved' scripts/e2e-smoke.sh
