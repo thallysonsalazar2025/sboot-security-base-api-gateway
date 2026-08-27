@@ -60,6 +60,26 @@ assert_unauthenticated_rejected() {
   esac
 }
 
+assert_invalid_token_rejected() {
+  correlation_id="e2e-smoke-invalid-token-$(date +%s)-$$"
+  response="$(request "invalid.jwt.token" "/api/v1/payroll?year=$SMOKE_YEAR&month=$SMOKE_MONTH" "$correlation_id")"
+  status="${response%%|*}"
+
+  case "$status" in
+    401|403)
+      echo "Malformed bearer token was rejected by the protected payroll endpoint (HTTP $status)."
+      ;;
+    000)
+      echo "Invalid-token gateway smoke failed: gateway was unreachable." >&2
+      exit 1
+      ;;
+    *)
+      echo "Invalid-token gateway smoke failed: protected endpoint returned HTTP $status for a malformed bearer token." >&2
+      exit 1
+      ;;
+  esac
+}
+
 assert_authenticated() {
   tenant="$1"
   token="$2"
@@ -102,6 +122,9 @@ assert_authenticated() {
 
 echo "Checking that unauthenticated access is rejected..."
 assert_unauthenticated_rejected
+
+echo "Checking that malformed bearer tokens are rejected..."
+assert_invalid_token_rejected
 
 echo "Checking protected gateway access for tenant A..."
 assert_authenticated "A" "$TENANT_A_TOKEN"
