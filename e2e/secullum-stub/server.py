@@ -23,6 +23,16 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def do_POST(self):
+        global _recovery_hits
+        parsed = urlparse(self.path)
+        if parsed.path != "/__admin/reset":
+            self._write(404, {"error": "not_found"})
+            return
+        with _lock:
+            _recovery_hits = 0
+        self._write(204, b"", content_type="application/json")
+
     def do_GET(self):
         global _recovery_hits
         parsed = urlparse(self.path)
