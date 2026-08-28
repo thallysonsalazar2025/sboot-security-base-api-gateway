@@ -94,8 +94,12 @@ assert_authenticated() {
   fi
 
   case "$status" in
-    2??|3??)
+    2??)
       echo "Tenant $tenant token was accepted by the protected payroll endpoint (HTTP $status) and correlation id was preserved."
+      ;;
+    3??)
+      echo "Authenticated gateway smoke failed for tenant $tenant: unexpected redirect HTTP $status; payroll must respond directly." >&2
+      exit 1
       ;;
     404)
       echo "Authenticated gateway smoke failed for tenant $tenant: payroll route is missing (HTTP 404)." >&2
