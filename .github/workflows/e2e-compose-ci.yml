@@ -55,11 +55,19 @@ jobs:
           trap 'kill "$STUB_PID" 2>/dev/null || true' EXIT
           python - <<'PY'
           import json
+          import time
           import urllib.error
           import urllib.request
 
           base = 'http://127.0.0.1:8080'
-          assert json.load(urllib.request.urlopen(base + '/health'))['status'] == 'UP'
+          for attempt in range(20):
+              try:
+                  assert json.load(urllib.request.urlopen(base + '/health', timeout=1))['status'] == 'UP'
+                  break
+              except Exception:
+                  if attempt == 19:
+                      raise
+                  time.sleep(0.1)
 
           req = urllib.request.Request(
               base + '/secullum/events?companyId=11111111-1111-1111-1111-111111111111&period=2026-08',
