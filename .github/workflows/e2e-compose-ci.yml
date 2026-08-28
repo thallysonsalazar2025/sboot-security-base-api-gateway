@@ -5,6 +5,8 @@ on:
     branches: [master]
     paths:
       - 'docker-compose.e2e.yml'
+      - 'docker-compose.secullum-stub.yml'
+      - 'e2e/secullum-stub/**'
       - '.env.example'
       - '.gitignore'
       - 'src/main/resources/application.yml'
@@ -32,12 +34,65 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Validate Docker Compose model
-        run: docker compose -f docker-compose.e2e.yml config --quiet
+        run: docker compose -f docker-compose.e2e.yml -f docker-compose.secullum-stub.yml config --quiet
 
       - name: Verify RabbitMQ health gate
         run: |
           grep -q 'rabbitmq-diagnostics' docker-compose.e2e.yml
           grep -q 'condition: service_healthy' docker-compose.e2e.yml
+
+      - name: Verify deterministic point provider stub
+        run: |
+          python -m py_compile e2e/secullum-stub/server.py
+          grep -Fq 'SECULLUM_BASE_URL: http://secullum-stub:8080' docker-compose.secullum-stub.yml
+          grep -Fq 'secullum-stub:' docker-compose.secullum-stub.yml
+          grep -Fq 'condition: service_healthy' docker-compose.secullum-stub.yml
+
+      - name: Exercise Secullum stub scenarios
+        run: |
+          python e2e/secullum-stub/server.py > /tmp/secullum-stub.log 2>&1 &
+          STUB_PID=$!
+          trap 'kill "$STUB_PID" 2>/dev/null || true' EXIT
+          python - <<'PY'
+          import json
+          import time
+          import urllib.error
+          import urllib.request
+
+          base = 'http://127.0.0.1:8080'
+          for attempt in range(20):
+              try:
+                  assert json.load(urllib.request.urlopen(base + '/health', timeout=1))['status'] == 'UP'
+                  break
+              except Exception:
+                  if attempt == 19:
+                      raise
+                  time.sleep(0.1)
+
+          req = urllib.request.Request(
+              base + '/secullum/events?companyId=11111111-1111-1111-1111-111111111111&period=2026-08',
+              headers={'X-Correlation-Id': 'ci-correlation-id'},
+          )
+          response = urllib.request.urlopen(req)
+          events = json.load(response)
+          assert response.headers['X-Correlation-Id'] == 'ci-correlation-id'
+          assert len(events) == 2
+
+          unavailable = base + '/secullum/events?companyId=00000000-0000-0000-0000-000000000503&period=2026-08'
+          try:
+              urllib.request.urlopen(unavailable)
+              raise AssertionError('expected 503 for unavailable company')
+          except urllib.error.HTTPError as exc:
+              assert exc.code == 503
+
+          recovery = base + '/secullum/events?companyId=00000000-0000-0000-0000-000000000504&period=2026-08'
+          try:
+              urllib.request.urlopen(recovery)
+              raise AssertionError('expected first recovery request to fail')
+          except urllib.error.HTTPError as exc:
+              assert exc.code == 503
+          assert urllib.request.urlopen(recovery).status == 200
+          PY
 
       - name: Verify secure defaults
         run: |
@@ -61,6 +116,7 @@ jobs:
           sh -n scripts/e2e-up.sh
           sh -n scripts/e2e-smoke.sh
           grep -Fq 'docker compose' scripts/e2e-up.sh
+          grep -Fq 'docker-compose.secullum-stub.yml' scripts/e2e-up.sh
           grep -Fq -- '--wait' scripts/e2e-up.sh
           grep -Fq 'TENANT_A_TOKEN' scripts/e2e-smoke.sh
           grep -Fq 'TENANT_B_TOKEN' scripts/e2e-smoke.sh
