@@ -1,0 +1,21 @@
+services:
+  secullum-stub:
+    image: python:3.12-alpine
+    container_name: secullum-stub
+    working_dir: /stub
+    command: ["python", "/stub/server.py"]
+    volumes:
+      - ./e2e/secullum-stub:/stub:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health', timeout=2).read()"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+      start_period: 2s
+
+  sboot-time-tracking-integration-service:
+    environment:
+      SECULLUM_BASE_URL: http://secullum-stub:8080
+    depends_on:
+      secullum-stub:
+        condition: service_healthy
