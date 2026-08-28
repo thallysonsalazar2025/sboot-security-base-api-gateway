@@ -24,14 +24,22 @@ request() {
   headers_file="$(mktemp)"
 
   if [ -n "$token" ]; then
-    status="$(curl --silent --show-error --output /dev/null --dump-header "$headers_file" --write-out '%{http_code}' \
+    if status="$(curl --silent --show-error --output /dev/null --dump-header "$headers_file" --write-out '%{http_code}' \
       -H "Authorization: Bearer $token" \
       -H "X-Correlation-Id: $correlation_id" \
-      "$GATEWAY_URL$path")"
+      "$GATEWAY_URL$path")"; then
+      :
+    else
+      status="000"
+    fi
   else
-    status="$(curl --silent --show-error --output /dev/null --dump-header "$headers_file" --write-out '%{http_code}' \
+    if status="$(curl --silent --show-error --output /dev/null --dump-header "$headers_file" --write-out '%{http_code}' \
       -H "X-Correlation-Id: $correlation_id" \
-      "$GATEWAY_URL$path")"
+      "$GATEWAY_URL$path")"; then
+      :
+    else
+      status="000"
+    fi
   fi
 
   response_correlation_id="$(awk 'tolower($1) == "x-correlation-id:" {gsub("\r", "", $2); print $2; exit}' "$headers_file")"
