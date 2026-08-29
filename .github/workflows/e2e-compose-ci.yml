@@ -12,6 +12,7 @@ on:
       - 'src/main/resources/application.yml'
       - 'scripts/e2e-up.sh'
       - 'scripts/e2e-smoke.sh'
+      - 'scripts/prepare-e2e-images.sh'
       - 'README.md'
       - '.github/workflows/e2e-compose-ci.yml'
   workflow_dispatch:
@@ -35,6 +36,12 @@ jobs:
 
       - name: Validate Docker Compose model
         run: docker compose -f docker-compose.e2e.yml -f docker-compose.secullum-stub.yml config --quiet
+
+      - name: Validate source image preparation helper
+        run: |
+          bash -n scripts/prepare-e2e-images.sh
+          grep -Fq 'TAG="latest"' scripts/prepare-e2e-images.sh
+          grep -Fq 'docker build --pull' scripts/prepare-e2e-images.sh
 
       - name: Verify RabbitMQ health gate
         run: |
