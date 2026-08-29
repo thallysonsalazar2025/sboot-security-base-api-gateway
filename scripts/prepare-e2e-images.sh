@@ -2,8 +2,8 @@
 set -euo pipefail
 
 OWNER="${GITHUB_OWNER:-thallysonsalazar2025}"
-WORKDIR="${PAYROLL_E2E_WORKDIR:-.payroll-e2e}"
-TAG="${IMAGE_TAG:-latest}"
+WORKDIR="${PAYROLL_E2E_WORKDIR:-${TMPDIR:-/tmp}/payroll-e2e}"
+TAG="latest"
 
 services=(
   sboot-security-base-auth-service
@@ -26,9 +26,15 @@ for service in "${services[@]}"; do
   repo_url="https://github.com/$OWNER/$service.git"
 
   if [[ -d "$repo_dir/.git" ]]; then
-    git -C "$repo_dir" fetch --depth=1 origin
+    git -C "$repo_dir" remote set-url origin "$repo_url"
+    git -C "$repo_dir" remote set-head origin --auto >/dev/null
     default_branch="$(git -C "$repo_dir" remote show origin | sed -n '/HEAD branch/s/.*: //p')"
-    git -C "$repo_dir" reset --hard "origin/$default_branch"
+    if [[ -z "$default_branch" ]]; then
+      echo "ERROR: could not determine default branch for $service" >&2
+      exit 1
+    fi
+    git -C "$repo_dir" fetch --depth=1 origin "$default_branch"
+    git -C "$repo_dir" reset --hard FETCH_HEAD
   else
     git clone --depth=1 "$repo_url" "$repo_dir"
   fi
@@ -41,4 +47,4 @@ for service in "${services[@]}"; do
   docker build --pull -t "$service:$TAG" "$repo_dir"
 done
 
-echo "Prepared ${#services[@]} payroll service images with tag $TAG"
+echo "Prepared ${#services[@]} payroll service images with tag $TAG in $WORKDIR"
