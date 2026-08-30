@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 
 @RestController
@@ -43,7 +42,7 @@ public class PayrollController {
 
         if (companyId == null || employeeId == null) {
             LOGGER.warn("Payroll request rejected: required claims missing");
-            return Mono.error(new ResponseStatusException(HttpStatus.FORBIDDEN, "User context missing required claims"));
+            return Mono.just(ResponseEntity.status(HttpStatus.FORBIDDEN).build());
         }
 
         return payrollService.getPayroll(companyId, employeeId, year, month)
