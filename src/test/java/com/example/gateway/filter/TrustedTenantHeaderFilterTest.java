@@ -10,7 +10,6 @@ import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import java.time.Instant;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -26,7 +25,7 @@ class TrustedTenantHeaderFilterTest {
                         .header(TrustedTenantHeaderFilter.TENANT_HEADER, "tenant-b")
                         .header(TrustedTenantHeaderFilter.EMPLOYEE_HEADER, "employee-b")
                         .build());
-        exchange = exchange.mutate().principal(auth("tenant-a", "employee-a")).build();
+        exchange = exchange.mutate().principal(Mono.just(auth("tenant-a", "employee-a"))).build();
         AtomicReference<String> tenant = new AtomicReference<>();
         AtomicReference<String> employee = new AtomicReference<>();
         WebFilterChain chain = current -> {
@@ -45,7 +44,7 @@ class TrustedTenantHeaderFilterTest {
     void rejectsPointSyncWhenCompanyClaimIsMissing() {
         MockServerWebExchange exchange = MockServerWebExchange.from(
                 org.springframework.mock.http.server.reactive.MockServerHttpRequest.post("/api/time-clock/events/sync").build());
-        exchange = exchange.mutate().principal(auth(null, "employee-a")).build();
+        exchange = exchange.mutate().principal(Mono.just(auth(null, "employee-a"))).build();
 
         StepVerifier.create(filter.filter(exchange, ignored -> Mono.empty())).verifyComplete();
 
