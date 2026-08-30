@@ -1,13 +1,16 @@
 package com.example.gateway.filter;
 
+import java.nio.charset.StandardCharsets;
+
 import org.springframework.core.Ordered;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.server.RequestPath;
+import org.springframework.http.server.PathContainer;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
+import org.springframework.web.util.UriUtils;
 import org.springframework.web.util.pattern.PathPattern;
 import org.springframework.web.util.pattern.PathPatternParser;
 import reactor.core.publisher.Mono;
@@ -22,8 +25,8 @@ public class TrustedTenantHeaderFilter implements WebFilter, Ordered {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
-        RequestPath requestPath = exchange.getRequest().getPath();
-        if (!POINT_SYNC_PATH.matches(requestPath.pathWithinApplication())) {
+        String decodedPath = UriUtils.decode(exchange.getRequest().getURI().getRawPath(), StandardCharsets.UTF_8);
+        if (!POINT_SYNC_PATH.matches(PathContainer.parsePath(decodedPath))) {
             return chain.filter(exchange);
         }
 
