@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.server.MockServerWebExchange;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
@@ -20,12 +21,14 @@ class TrustedTenantHeaderFilterTest {
 
     @Test
     void replacesSpoofedHeadersWithAuthenticatedClaims() {
-        MockServerWebExchange exchange = MockServerWebExchange.from(
+        ServerWebExchange exchange = MockServerWebExchange.from(
                 org.springframework.mock.http.server.reactive.MockServerHttpRequest.post("/api/time-clock/events/sync")
                         .header(TrustedTenantHeaderFilter.TENANT_HEADER, "tenant-b")
                         .header(TrustedTenantHeaderFilter.EMPLOYEE_HEADER, "employee-b")
-                        .build());
-        exchange = exchange.mutate().principal(Mono.just(auth("tenant-a", "employee-a"))).build();
+                        .build())
+                .mutate()
+                .principal(Mono.just(auth("tenant-a", "employee-a")))
+                .build();
         AtomicReference<String> tenant = new AtomicReference<>();
         AtomicReference<String> employee = new AtomicReference<>();
         WebFilterChain chain = current -> {
@@ -42,9 +45,11 @@ class TrustedTenantHeaderFilterTest {
 
     @Test
     void rejectsPointSyncWhenCompanyClaimIsMissing() {
-        MockServerWebExchange exchange = MockServerWebExchange.from(
-                org.springframework.mock.http.server.reactive.MockServerHttpRequest.post("/api/time-clock/events/sync").build());
-        exchange = exchange.mutate().principal(Mono.just(auth(null, "employee-a"))).build();
+        ServerWebExchange exchange = MockServerWebExchange.from(
+                org.springframework.mock.http.server.reactive.MockServerHttpRequest.post("/api/time-clock/events/sync").build())
+                .mutate()
+                .principal(Mono.just(auth(null, "employee-a")))
+                .build();
 
         StepVerifier.create(filter.filter(exchange, ignored -> Mono.empty())).verifyComplete();
 
