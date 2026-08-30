@@ -21,14 +21,7 @@ class TrustedTenantHeaderFilterTest {
 
     @Test
     void replacesSpoofedHeadersWithAuthenticatedClaims() {
-        ServerWebExchange exchange = MockServerWebExchange.from(
-                org.springframework.mock.http.server.reactive.MockServerHttpRequest.post("/api/time-clock/events/sync")
-                        .header(TrustedTenantHeaderFilter.TENANT_HEADER, "tenant-b")
-                        .header(TrustedTenantHeaderFilter.EMPLOYEE_HEADER, "employee-b")
-                        .build())
-                .mutate()
-                .principal(Mono.just(auth("tenant-a", "employee-a")))
-                .build();
+        ServerWebExchange exchange = exchange("/api/time-clock/events/sync", "tenant-a", "employee-a");
         AtomicReference<String> tenant = new AtomicReference<>();
         AtomicReference<String> employee = new AtomicReference<>();
         WebFilterChain chain = current -> {
@@ -44,6 +37,20 @@ class TrustedTenantHeaderFilterTest {
     }
 
     @Test
+    void encodedSyncPathCannotBypassTrustedTenantReplacement() {
+        ServerWebExchange exchange = exchange("/api/time-clock/events/%73ync", "tenant-a", "employee-a");
+        AtomicReference<String> tenant = new AtomicReference<>();
+        WebFilterChain chain = current -> {
+            tenant.set(current.getRequest().getHeaders().getFirst(TrustedTenantHeaderFilter.TENANT_HEADER));
+            return Mono.empty();
+        };
+
+        StepVerifier.create(filter.filter(exchange, chain)).verifyComplete();
+
+        assertThat(tenant.get()).isEqualTo("tenant-a");
+    }
+
+    @Test
     void rejectsPointSyncWhenCompanyClaimIsMissing() {
         ServerWebExchange exchange = MockServerWebExchange.from(
                 org.springframework.mock.http.server.reactive.MockServerHttpRequest.post("/api/time-clock/events/sync").build())
@@ -54,6 +61,17 @@ class TrustedTenantHeaderFilterTest {
         StepVerifier.create(filter.filter(exchange, ignored -> Mono.empty())).verifyComplete();
 
         assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    private ServerWebExchange exchange(String path, String companyId, String employeeId) {
+        return MockServerWebExchange.from(
+                org.springframework.mock.http.server.reactive.MockServerHttpRequest.post(path)
+                        .header(TrustedTenantHeaderFilter.TENANT_HEADER, "tenant-b")
+                        .header(TrustedTenantHeaderFilter.EMPLOYEE_HEADER, "employee-b")
+                        .build())
+                .mutate()
+                .principal(Mono.just(auth(companyId, employeeId)))
+                .build();
     }
 
     private JwtAuthenticationToken auth(String companyId, String employeeId) {
