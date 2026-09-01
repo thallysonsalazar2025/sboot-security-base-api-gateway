@@ -37,7 +37,35 @@ class TrustedTenantHeaderFilterTest {
     }
 
     @Test
-    void encodedSyncPathCannotBypassTrustedTenantReplacement() {
+    void replacesSpoofedHeadersOnAdjustmentRoute() {
+        ServerWebExchange exchange = exchange("/api/time-clock/adjustments/123/decision", "tenant-a", "employee-a");
+        AtomicReference<String> tenant = new AtomicReference<>();
+        WebFilterChain chain = current -> {
+            tenant.set(current.getRequest().getHeaders().getFirst(TrustedTenantHeaderFilter.TENANT_HEADER));
+            return Mono.empty();
+        };
+
+        StepVerifier.create(filter.filter(exchange, chain)).verifyComplete();
+
+        assertThat(tenant.get()).isEqualTo("tenant-a");
+    }
+
+    @Test
+    void replacesSpoofedHeadersOnTimesheetRoute() {
+        ServerWebExchange exchange = exchange("/api/time-clock/timesheets/emp-1", "tenant-a", "employee-a");
+        AtomicReference<String> tenant = new AtomicReference<>();
+        WebFilterChain chain = current -> {
+            tenant.set(current.getRequest().getHeaders().getFirst(TrustedTenantHeaderFilter.TENANT_HEADER));
+            return Mono.empty();
+        };
+
+        StepVerifier.create(filter.filter(exchange, chain)).verifyComplete();
+
+        assertThat(tenant.get()).isEqualTo("tenant-a");
+    }
+
+    @Test
+    void encodedPointPathCannotBypassTrustedTenantReplacement() {
         ServerWebExchange exchange = exchange("/api/time-clock/events/%73ync", "tenant-a", "employee-a");
         AtomicReference<String> tenant = new AtomicReference<>();
         WebFilterChain chain = current -> {
@@ -51,9 +79,9 @@ class TrustedTenantHeaderFilterTest {
     }
 
     @Test
-    void rejectsPointSyncWhenCompanyClaimIsMissing() {
+    void rejectsPointApiWhenCompanyClaimIsMissing() {
         ServerWebExchange exchange = MockServerWebExchange.from(
-                org.springframework.mock.http.server.reactive.MockServerHttpRequest.post("/api/time-clock/events/sync").build())
+                org.springframework.mock.http.server.reactive.MockServerHttpRequest.post("/api/time-clock/adjustments/123/decision").build())
                 .mutate()
                 .principal(Mono.just(auth(null, "employee-a")))
                 .build();
@@ -61,6 +89,20 @@ class TrustedTenantHeaderFilterTest {
         StepVerifier.create(filter.filter(exchange, ignored -> Mono.empty())).verifyComplete();
 
         assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    void leavesUnrelatedApiRoutesUntouched() {
+        ServerWebExchange exchange = exchange("/api/payroll/query", "tenant-a", "employee-a");
+        AtomicReference<String> tenant = new AtomicReference<>();
+        WebFilterChain chain = current -> {
+            tenant.set(current.getRequest().getHeaders().getFirst(TrustedTenantHeaderFilter.TENANT_HEADER));
+            return Mono.empty();
+        };
+
+        StepVerifier.create(filter.filter(exchange, chain)).verifyComplete();
+
+        assertThat(tenant.get()).isEqualTo("tenant-b");
     }
 
     private ServerWebExchange exchange(String path, String companyId, String employeeId) {
