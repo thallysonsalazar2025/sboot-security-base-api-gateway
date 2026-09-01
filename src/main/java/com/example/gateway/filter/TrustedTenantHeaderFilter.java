@@ -20,13 +20,13 @@ public class TrustedTenantHeaderFilter implements WebFilter, Ordered {
 
     static final String TENANT_HEADER = "X-Authenticated-Tenant-Id";
     static final String EMPLOYEE_HEADER = "X-Authenticated-Employee-Id";
-    private static final PathPattern POINT_SYNC_PATH =
-            PathPatternParser.defaultInstance.parse("/api/time-clock/events/sync/**");
+    private static final PathPattern POINT_API_PATH =
+            PathPatternParser.defaultInstance.parse("/api/time-clock/**");
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
         String decodedPath = UriUtils.decode(exchange.getRequest().getURI().getRawPath(), StandardCharsets.UTF_8);
-        if (!POINT_SYNC_PATH.matches(PathContainer.parsePath(decodedPath))) {
+        if (!POINT_API_PATH.matches(PathContainer.parsePath(decodedPath))) {
             return chain.filter(exchange);
         }
 
