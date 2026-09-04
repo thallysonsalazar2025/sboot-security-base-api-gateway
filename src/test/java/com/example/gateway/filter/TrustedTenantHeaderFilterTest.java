@@ -37,6 +37,23 @@ class TrustedTenantHeaderFilterTest {
     }
 
     @Test
+    void removesSpoofedEmployeeHeaderWhenAuthenticatedClaimIsMissing() {
+        ServerWebExchange exchange = exchange("/api/time-clock/events/sync", "tenant-a", null);
+        AtomicReference<String> tenant = new AtomicReference<>();
+        AtomicReference<String> employee = new AtomicReference<>();
+        WebFilterChain chain = current -> {
+            tenant.set(current.getRequest().getHeaders().getFirst(TrustedTenantHeaderFilter.TENANT_HEADER));
+            employee.set(current.getRequest().getHeaders().getFirst(TrustedTenantHeaderFilter.EMPLOYEE_HEADER));
+            return Mono.empty();
+        };
+
+        StepVerifier.create(filter.filter(exchange, chain)).verifyComplete();
+
+        assertThat(tenant.get()).isEqualTo("tenant-a");
+        assertThat(employee.get()).isNull();
+    }
+
+    @Test
     void replacesSpoofedHeadersOnAdjustmentRoute() {
         ServerWebExchange exchange = exchange("/api/time-clock/adjustments/123/decision", "tenant-a", "employee-a");
         AtomicReference<String> tenant = new AtomicReference<>();
