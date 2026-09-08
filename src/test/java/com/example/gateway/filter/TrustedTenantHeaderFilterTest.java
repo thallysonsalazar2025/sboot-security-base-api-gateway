@@ -54,6 +54,41 @@ class TrustedTenantHeaderFilterTest {
     }
 
     @Test
+    void removesSpoofedEmployeeHeaderWhenAuthenticatedClaimIsBlank() {
+        ServerWebExchange exchange = exchange("/api/time-clock/events/sync", "tenant-a", "   ");
+        AtomicReference<String> tenant = new AtomicReference<>();
+        AtomicReference<String> employee = new AtomicReference<>();
+        WebFilterChain chain = current -> {
+            tenant.set(current.getRequest().getHeaders().getFirst(TrustedTenantHeaderFilter.TENANT_HEADER));
+            employee.set(current.getRequest().getHeaders().getFirst(TrustedTenantHeaderFilter.EMPLOYEE_HEADER));
+            return Mono.empty();
+        };
+
+        StepVerifier.create(filter.filter(exchange, chain)).verifyComplete();
+
+        assertThat(tenant.get()).isEqualTo("tenant-a");
+        assertThat(employee.get()).isNull();
+    }
+
+    @Test
+    void rejectsUnauthenticatedPointRequestWithoutForwardingSpoofedHeaders() {
+        ServerWebExchange exchange = MockServerWebExchange.from(
+                org.springframework.mock.http.server.reactive.MockServerHttpRequest.post("/api/time-clock/events/sync")
+                        .header(TrustedTenantHeaderFilter.TENANT_HEADER, "tenant-b")
+                        .header(TrustedTenantHeaderFilter.EMPLOYEE_HEADER, "employee-b")
+                        .build());
+        AtomicReference<Boolean> forwarded = new AtomicReference<>(false);
+
+        StepVerifier.create(filter.filter(exchange, current -> {
+            forwarded.set(true);
+            return Mono.empty();
+        })).verifyComplete();
+
+        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(forwarded.get()).isFalse();
+    }
+
+    @Test
     void replacesSpoofedHeadersOnAdjustmentRoute() {
         ServerWebExchange exchange = exchange("/api/time-clock/adjustments/123/decision", "tenant-a", "employee-a");
         AtomicReference<String> tenant = new AtomicReference<>();
