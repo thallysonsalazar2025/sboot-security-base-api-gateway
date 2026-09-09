@@ -1,6 +1,7 @@
 package com.example.gateway.filter;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 
 import org.springframework.core.Ordered;
 import org.springframework.http.HttpStatus;
@@ -32,21 +33,22 @@ public class TrustedTenantHeaderFilter implements WebFilter, Ordered {
 
         return exchange.getPrincipal()
                 .ofType(JwtAuthenticationToken.class)
-                .map(authentication -> (JwtAuthenticationToken) authentication)
-                .defaultIfEmpty(null)
+                .map(Optional::of)
+                .defaultIfEmpty(Optional.empty())
                 .flatMap(authentication -> {
-                    if (authentication == null) {
+                    if (authentication.isEmpty()) {
                         exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
                         return exchange.getResponse().setComplete();
                     }
 
-                    String companyId = authentication.getToken().getClaimAsString("companyId");
+                    JwtAuthenticationToken jwtAuthentication = authentication.get();
+                    String companyId = jwtAuthentication.getToken().getClaimAsString("companyId");
                     if (companyId == null || companyId.isBlank()) {
                         exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
                         return exchange.getResponse().setComplete();
                     }
 
-                    String employeeId = authentication.getToken().getClaimAsString("employeeId");
+                    String employeeId = jwtAuthentication.getToken().getClaimAsString("employeeId");
                     ServerWebExchange trustedExchange = exchange.mutate()
                             .request(request -> {
                                 request.headers(headers -> {
