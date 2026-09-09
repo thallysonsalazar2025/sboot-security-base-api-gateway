@@ -27,13 +27,15 @@ class TrustedTenantHeaderFilterTest {
         WebFilterChain chain = current -> {
             tenant.set(current.getRequest().getHeaders().getFirst(TrustedTenantHeaderFilter.TENANT_HEADER));
             employee.set(current.getRequest().getHeaders().getFirst(TrustedTenantHeaderFilter.EMPLOYEE_HEADER));
-            return Mono.empty();
+            current.getResponse().setStatusCode(HttpStatus.NO_CONTENT);
+            return current.getResponse().setComplete();
         };
 
         StepVerifier.create(filter.filter(exchange, chain)).verifyComplete();
 
         assertThat(tenant.get()).isEqualTo("tenant-a");
         assertThat(employee.get()).isEqualTo("employee-a");
+        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
     }
 
     @Test

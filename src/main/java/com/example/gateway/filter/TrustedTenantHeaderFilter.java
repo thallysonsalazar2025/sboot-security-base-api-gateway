@@ -1,6 +1,7 @@
 package com.example.gateway.filter;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 
 import org.springframework.core.Ordered;
 import org.springframework.http.HttpStatus;
@@ -32,14 +33,22 @@ public class TrustedTenantHeaderFilter implements WebFilter, Ordered {
 
         return exchange.getPrincipal()
                 .ofType(JwtAuthenticationToken.class)
+                .map(Optional::of)
+                .defaultIfEmpty(Optional.empty())
                 .flatMap(authentication -> {
-                    String companyId = authentication.getToken().getClaimAsString("companyId");
+                    if (authentication.isEmpty()) {
+                        exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+                        return exchange.getResponse().setComplete();
+                    }
+
+                    JwtAuthenticationToken jwtAuthentication = authentication.get();
+                    String companyId = jwtAuthentication.getToken().getClaimAsString("companyId");
                     if (companyId == null || companyId.isBlank()) {
                         exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
                         return exchange.getResponse().setComplete();
                     }
 
-                    String employeeId = authentication.getToken().getClaimAsString("employeeId");
+                    String employeeId = jwtAuthentication.getToken().getClaimAsString("employeeId");
                     ServerWebExchange trustedExchange = exchange.mutate()
                             .request(request -> {
                                 request.headers(headers -> {
@@ -53,11 +62,7 @@ public class TrustedTenantHeaderFilter implements WebFilter, Ordered {
                             })
                             .build();
                     return chain.filter(trustedExchange);
-                })
-                .switchIfEmpty(Mono.defer(() -> {
-                    exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-                    return exchange.getResponse().setComplete();
-                }));
+                });
     }
 
     @Override
