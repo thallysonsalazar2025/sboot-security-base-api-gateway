@@ -32,7 +32,14 @@ public class TrustedTenantHeaderFilter implements WebFilter, Ordered {
 
         return exchange.getPrincipal()
                 .ofType(JwtAuthenticationToken.class)
+                .map(authentication -> (JwtAuthenticationToken) authentication)
+                .defaultIfEmpty(null)
                 .flatMap(authentication -> {
+                    if (authentication == null) {
+                        exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+                        return exchange.getResponse().setComplete();
+                    }
+
                     String companyId = authentication.getToken().getClaimAsString("companyId");
                     if (companyId == null || companyId.isBlank()) {
                         exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
@@ -53,11 +60,7 @@ public class TrustedTenantHeaderFilter implements WebFilter, Ordered {
                             })
                             .build();
                     return chain.filter(trustedExchange);
-                })
-                .switchIfEmpty(Mono.defer(() -> {
-                    exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-                    return exchange.getResponse().setComplete();
-                }));
+                });
     }
 
     @Override
