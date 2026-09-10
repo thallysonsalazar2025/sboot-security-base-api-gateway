@@ -40,6 +40,7 @@ services:
     environment:
       JWT_HS512_SECRET: ${JWT_HS512_SECRET:?JWT_HS512_SECRET is required}
       PAYROLL_QUERY_SERVICE_URL: http://sboot-payroll-query-service:8080
+      TIME_TRACKING_SERVICE_URL: http://sboot-time-tracking-integration-service:8080
       LOG_ELASTICSEARCH_ENABLED: ${LOG_ELASTICSEARCH_ENABLED:-false}
       LOG_ELASTICSEARCH_ENDPOINT: ${LOG_ELASTICSEARCH_ENDPOINT:-}
       LOG_ELASTICSEARCH_API_KEY: ${LOG_ELASTICSEARCH_API_KEY:-}
