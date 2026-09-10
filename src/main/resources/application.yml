@@ -11,6 +11,11 @@ spring:
         response-timeout: 10s
       default-filters:
         - RemoveRequestHeader=Cookie
+      routes:
+        - id: time-tracking
+          uri: ${TIME_TRACKING_SERVICE_URL:http://localhost:8080}
+          predicates:
+            - Path=/api/time-clock/**
 
 management:
   endpoints:
