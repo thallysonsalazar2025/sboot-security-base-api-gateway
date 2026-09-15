@@ -21,6 +21,20 @@ services:
       retries: 12
       start_period: 10s
 
+  time-tracking-postgres:
+    image: postgres:16-alpine
+    container_name: time-tracking-postgres
+    environment:
+      POSTGRES_DB: time_tracking
+      POSTGRES_USER: time_tracking
+      POSTGRES_PASSWORD: time_tracking
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U time_tracking -d time_tracking"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
   sboot-security-base-auth-service:
     image: sboot-security-base-auth-service:latest
     container_name: sboot-security-base-auth-service
@@ -55,6 +69,8 @@ services:
       sboot-payroll-query-service:
         condition: service_healthy
       sboot-security-base-auth-service:
+        condition: service_healthy
+      sboot-time-tracking-integration-service:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
@@ -177,7 +193,12 @@ services:
     container_name: sboot-time-tracking-integration-service
     environment:
       SPRING_RABBITMQ_HOST: rabbitmq
+      DB_URL: jdbc:postgresql://time-tracking-postgres:5432/time_tracking
+      DB_USERNAME: time_tracking
+      DB_PASSWORD: time_tracking
     healthcheck: *spring-healthcheck
     depends_on:
+      time-tracking-postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
